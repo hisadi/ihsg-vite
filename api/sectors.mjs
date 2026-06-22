@@ -1,5 +1,5 @@
 // api/sectors.js — GET /api/sectors → sector performance array
-import { STOCKS_META, SECTOR_LABELS, fetchBatchQuotes, buildStockFromQuote } from './_lib/market.mjs'
+import { STOCKS_META, SECTOR_LABELS, fetchBatchQuotes, buildStockFromQuote } from './lib/market.mjs'
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')

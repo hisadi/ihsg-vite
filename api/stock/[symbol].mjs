@@ -1,5 +1,5 @@
 // api/stock/[symbol].js — GET /api/stock/BBCA → detail satu saham
-import { STOCKS_META, fetchBatchQuotes, buildStockFromQuote, applyMicroTick } from '../_lib/market.mjs'
+import { STOCKS_META, fetchBatchQuotes, buildStockFromQuote, applyMicroTick } from '../lib/market.mjs'
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
