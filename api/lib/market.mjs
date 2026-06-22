@@ -86,20 +86,38 @@ export const SECTOR_BETAS = {
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
-// Fetch all 70 stocks + IHSG in one batch request
+// Fetch crumb + cookie from Yahoo Finance (required for v7 API)
+async function getYahooCrumb() {
+  const r1 = await fetch('https://finance.yahoo.com/quote/BBCA.JK/', {
+    headers: { 'User-Agent': UA, 'Accept': 'text/html' },
+    signal: AbortSignal.timeout(10000),
+  })
+  const cookie = r1.headers.get('set-cookie') || ''
+  const html = await r1.text()
+  const crumbMatch = html.match(/"crumb":"([^"]+)"/)
+  const crumb = crumbMatch ? crumbMatch[1].replace(/\\u002F/g, '/') : null
+  return { crumb, cookie }
+}
+
 export async function fetchBatchQuotes() {
   const symbols = [...STOCKS_META.map(m => m.sym + '.JK'), '^JKSE'].join(',')
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketPreviousClose,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,regularMarketVolume`
+  
+  const { crumb, cookie } = await getYahooCrumb()
+  if (!crumb) throw new Error('Could not get Yahoo crumb')
+
+  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&crumb=${encodeURIComponent(crumb)}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketPreviousClose,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,regularMarketVolume`
   
   const resp = await fetch(url, {
-    headers: { 'User-Agent': UA, 'Accept': 'application/json' },
+    headers: {
+      'User-Agent': UA,
+      'Accept': 'application/json',
+      'Cookie': cookie,
+    },
     signal: AbortSignal.timeout(15000),
   })
   if (!resp.ok) throw new Error(`Yahoo batch fetch failed: ${resp.status}`)
   const data = await resp.json()
   const results = data?.quoteResponse?.result || []
-  
-  // Build lookup map
   const map = {}
   results.forEach(q => { map[q.symbol] = q })
   return map
