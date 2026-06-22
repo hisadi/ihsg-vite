@@ -1,5 +1,5 @@
 // api/stocks.js — GET /api/stocks → { stocks[], ihsg, timestamp }
-import { STOCKS_META, fetchBatchQuotes, buildStockFromQuote, buildIHSG, applyMicroTick } from './_lib/market.mjs'
+import { STOCKS_META, fetchBatchQuotes, buildStockFromQuote, buildIHSG, applyMicroTick } from './lib/market.mjs'
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
