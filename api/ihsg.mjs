@@ -1,5 +1,5 @@
 // api/ihsg.js — GET /api/ihsg → { value, change, changePct, spark, timestamp }
-import { fetchBatchQuotes, buildIHSG } from './_lib/market.js'
+import { fetchBatchQuotes, buildIHSG } from './_lib/market.mjs'
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
