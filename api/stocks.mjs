@@ -1,7 +1,7 @@
 // api/stocks.mjs — GET /api/stocks → { stocks[], ihsg, timestamp }
 // Pakai daftar ticker dinamis dari Yahoo Finance screener
 
-import { STOCKS_META, buildStockFromQuote, buildIHSG, applyMicroTick, SECTOR_BETAS } from './lib/market.mjs'
+import { STOCKS_META, buildStockFromQuote, buildIHSG, SECTOR_BETAS } from './lib/market.mjs'
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
@@ -168,26 +168,4 @@ function buildSpark(last, changePct, points = 20) {
     arr.push(+v.toFixed(0))
   }
   return arr
-}
-
-function applyMicroTick(stock, nowMs) {
-  const wib = new Date(nowMs + 7 * 60 * 60 * 1000)
-  const day = wib.getUTCDay()
-  const timeMin = wib.getUTCHours() * 60 + wib.getUTCMinutes()
-  if (!(day >= 1 && day <= 5 && timeMin >= 540 && timeMin <= 900)) return stock
-
-  const seed = Math.floor(nowMs / 1500)
-  const hash = simpleHash(stock.symbol + seed)
-  const beta = SECTOR_BETAS[stock.sector] || 1.0
-  const nudge = ((hash % 201) - 100) / 10000 * beta
-  const newLast = Math.round(stock.last * (1 + nudge))
-  const newChangePct = +((newLast - stock.prevClose) / stock.prevClose * 100).toFixed(2)
-  const spark = [...(stock.spark || []).slice(-29), newLast]
-  return { ...stock, last: newLast, changePct: newChangePct, change: +(newLast - stock.prevClose).toFixed(0), spark }
-}
-
-function simpleHash(str) {
-  let h = 0
-  for (let i = 0; i < str.length; i++) h = (Math.imul(31, h) + str.charCodeAt(i)) | 0
-  return Math.abs(h)
 }
