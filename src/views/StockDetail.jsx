@@ -57,7 +57,7 @@ export default function StockDetail({ symbol, stocks, openStock, openPredictionF
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
         body: JSON.stringify({
-          model: 'google/gemma-4-31b-it:free',
+          model: 'nvidia/nemotron-nano-12b-v2-vl:free',
           messages: [{
             role: 'user',
             content: `Jelaskan profil perusahaan ${symbol} (${st?.name}) yang terdaftar di Bursa Efek Indonesia dalam Bahasa Indonesia, max 150 kata. Sertakan: bidang usaha utama, produk/layanan, posisi di industri, dan fakta menarik. Jangan sebut data keuangan spesifik yang bisa berubah.`
