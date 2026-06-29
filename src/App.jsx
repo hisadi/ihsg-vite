@@ -27,6 +27,8 @@ const NAV = [
   { id: 'portfolio',   label: 'Portfolio',  icon: Icon.portfolio,   section: 'ANDA' },
   { id: 'predictions', label: 'Prediksi',    icon: Icon.predict,     section: 'OBJEKTIVITAS' },
   { id: 'signals',     label: 'Sinyal',      icon: Icon.predict,     section: 'ANALISIS' },
+  { id: 'rekomendasi', label: 'Rekomendasi', icon: Icon.predict,     section: 'ANALISIS' },
+  { id: 'trading',     label: 'Trading',     icon: Icon.portfolio,   section: 'ANALISIS' },
   { id: 'leaderboard', label: 'Leaderboard', icon: Icon.leaderboard, section: 'OBJEKTIVITAS' },
   { id: 'settings', label: 'Settings', icon: Icon.screener, section: 'LAINNYA' },
 ]
