@@ -67,12 +67,12 @@ export default function Settings() {
         let codeCol = -1, nameCol = -1, sectorCol = -1, sharesCol = -1
         for (let i = 0; i < Math.min(10, rows.length); i++) {
           const row = rows[i].map(c => String(c).toLowerCase().trim())
-          const codeI = row.findIndex(c => c === 'kode' || c.includes('kode') || c === 'code')
-          const nameI = row.findIndex(c => c.includes('nama') || c === 'name')
-          const secI = row.findIndex(c => c.includes('sektor') || c.includes('sector') || c.includes('industri'))
-          const sharesI = row.findIndex(c => c === 'saham' || c.includes('saham beredar'))
-          if (codeI >= 0 && nameI >= 0) {
-            headerIdx = i; codeCol = codeI; nameCol = nameI; sectorCol = secI; sharesCol = sharesI
+          const ci = row.findIndex(c => c === 'kode' || c.includes('kode') || c === 'code')
+          const ni = row.findIndex(c => c.includes('nama') || c === 'name')
+          const si = row.findIndex(c => c.includes('sektor') || c.includes('sector') || c.includes('industri'))
+          const shi = row.findIndex(c => c === 'saham' || c.includes('saham beredar'))
+          if (ci >= 0 && ni >= 0) {
+            headerIdx = i; codeCol = ci; nameCol = ni; sectorCol = si; sharesCol = shi
             break
           }
         }
