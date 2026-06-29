@@ -169,6 +169,8 @@ function App() {
 function GlobalSearch({ stocks, onSelect }) {
   const [q, setQ] = useState('')
   const [focused, setFocused] = useState(false)
+  const [searching, setSearching] = useState(false)
+  const [extraResult, setExtraResult] = useState(null)
   const syms = Object.keys(stocks || {})
   const results = q
     ? syms.filter(s => {
@@ -177,26 +179,64 @@ function GlobalSearch({ stocks, onSelect }) {
       }).slice(0, 8)
     : []
 
-  function pick(s) { onSelect(s); setQ(''); setFocused(false) }
+  async function searchIDX(sym) {
+    if (!sym || sym.length < 2) return
+    if (stocks[sym.toUpperCase()]) return
+    setSearching(true); setExtraResult(null)
+    try {
+      const res = await fetch(`/api/stock/${sym.toUpperCase()}`)
+      if (res.ok) setExtraResult(await res.json())
+    } catch {}
+    setSearching(false)
+  }
+
+  function pick(s) { onSelect(s); setQ(''); setFocused(false); setExtraResult(null) }
 
   return (
     <div className="search">
       <span className="ico">{Icon.search()}</span>
       <input
         value={q}
-        onChange={e => setQ(e.target.value)}
+        onChange={e => { setQ(e.target.value); setExtraResult(null) }}
         onFocus={() => setFocused(true)}
         onBlur={() => setTimeout(() => setFocused(false), 150)}
-        placeholder="Cari saham (BBCA, Telkom, ...)"
+        placeholder="Cari saham BEI (BBCA, GOTO, ...)"
+        onKeyDown={e => { if (e.key === 'Enter' && q.length >= 2 && results.length === 0) searchIDX(q) }}
       />
-      <span className="kbd">/</span>
-      {focused && results.length > 0 && (
+      {searching
+        ? <span className="muted" style={{ fontSize: 10 }}>...</span>
+        : results.length === 0 && q.length >= 2
+          ? <button className="btn sm ghost" style={{ fontSize: 10, padding: '2px 8px' }}
+              onMouseDown={() => searchIDX(q)}>Cari BEI</button>
+          : <span className="kbd">/</span>
+      }
+      {focused && (results.length > 0 || extraResult) && (
         <div style={{
           position: 'absolute', left: 0, right: 0, top: 32,
           background: 'var(--bg-2)', border: '1px solid var(--border)',
           borderRadius: 6, padding: 4, zIndex: 50,
           boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
         }}>
+          {extraResult && (
+            <div onMouseDown={() => pick(extraResult.symbol)}
+              style={{
+                padding: '6px 8px', borderRadius: 4, cursor: 'pointer',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12,
+                borderBottom: results.length > 0 ? '1px solid var(--border)' : undefined
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--panel)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <div>
+                <strong>{extraResult.symbol}</strong>
+                <span className="muted" style={{ marginLeft: 8, fontSize: 11 }}>{extraResult.name}</span>
+                <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--accent)', background: 'var(--accent-2)', padding: '1px 6px', borderRadius: 3 }}>BEI</span>
+              </div>
+              <span className={`chg-pill ${extraResult.changePct >= 0 ? 'up' : 'down'}`}>
+                {extraResult.changePct >= 0 ? '+' : ''}{extraResult.changePct.toFixed(2)}%
+              </span>
+            </div>
+          )}
           {results.map(s => {
             const st = stocks[s]
             return (
