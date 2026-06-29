@@ -25,7 +25,6 @@ export default function News({ news = [], openStock }) {
         <LivePill />
       </div>
 
-      {/* Sentiment gauge */}
       <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
         <div className="stat-card">
           <div className="label">Skor Sentimen Pasar</div>
@@ -49,21 +48,15 @@ export default function News({ news = [], openStock }) {
               ))}
             </div>
           </div>
-          <span className="muted" style={{ fontSize: 11 }}>Sumber: IDX, Bloomberg ID, Kontan, Reuters, etc.</span>
+          <span className="muted" style={{ fontSize: 11 }}>Sumber: CNBC Indonesia, Detik Finance</span>
         </div>
         <div className="col" style={{ gap: 0 }}>
           {filtered.map(n => (
-            <NewsRow key={n.id} n={n} onOpen={() => n.sym && openStock(n.sym)} />
+            <NewsRow key={n.id} n={n} onOpenStock={() => n.sym && openStock(n.sym)} />
           ))}
           {filtered.length === 0 && (
             <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)' }}>Tidak ada berita pada filter ini</div>
           )}
-        </div>
-      </div>
-
-      <div className="panel" style={{ borderStyle: 'dashed', borderColor: 'var(--border-2)' }}>
-        <div className="panel-body" style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6 }}>
-          <strong style={{ color: 'var(--text)' }}>Catatan:</strong> Berita di sini di-generate berdasarkan pergerakan saham real-time untuk demo. Untuk produksi, sambungkan ke RSS atau API berita finansial Indonesia (IDX, Kontan, Bisnis.com, CNBC) dengan NLP classifier sederhana untuk skor sentimen.
         </div>
       </div>
     </div>
@@ -81,24 +74,49 @@ function SentimentCard({ label, count, total, color }) {
   )
 }
 
-function NewsRow({ n, onOpen }) {
+function NewsRow({ n, onOpenStock }) {
   const color = n.sentiment === 'positive' ? 'var(--up)' : n.sentiment === 'negative' ? 'var(--down)' : 'var(--accent)'
   const bg = n.sentiment === 'positive' ? 'var(--up-2)' : n.sentiment === 'negative' ? 'var(--down-2)' : 'var(--accent-2)'
+
+  function handleClick(e) {
+    // Klik judul → buka artikel
+    if (n.url) {
+      window.open(n.url, '_blank', 'noopener,noreferrer')
+    }
+  }
+
+  function handleSymClick(e) {
+    e.stopPropagation()
+    onOpenStock()
+  }
+
   return (
-    <div className="row" style={{ gap: 14, padding: '12px 14px', borderBottom: '1px solid var(--border)', cursor: n.sym ? 'pointer' : 'default' }} onClick={onOpen}>
-      <div style={{ width: 6, alignSelf: 'stretch', background: color, borderRadius: 3 }}></div>
-      <div className="col" style={{ flex: 1, gap: 4 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.4 }}>{n.title}</div>
-        <div className="row" style={{ gap: 8, fontSize: 11, color: 'var(--text-3)' }}>
+    <div className="row" style={{ gap: 14, padding: '12px 14px', borderBottom: '1px solid var(--border)', cursor: n.url ? 'pointer' : 'default' }}
+      onClick={handleClick}
+      onMouseEnter={e => { if (n.url) e.currentTarget.style.background = 'var(--panel)' }}
+      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+    >
+      <div style={{ width: 6, alignSelf: 'stretch', background: color, borderRadius: 3, flexShrink: 0 }}></div>
+      <div className="col" style={{ flex: 1, gap: 4, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.4 }}>
+          {n.title}
+          {n.url && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--text-3)' }}>↗</span>}
+        </div>
+        <div className="row" style={{ gap: 8, fontSize: 11, color: 'var(--text-3)', flexWrap: 'wrap' }}>
           <span>{n.source}</span>
           <span>·</span>
           <span>{fmt.rel(n.ts)}</span>
           <span>·</span>
           <span className="tag" style={{ borderColor: color + '44', color }}>{n.tag}</span>
-          {n.sym && <span className="tag">{n.sym}</span>}
+          {n.sym && (
+            <span className="tag" style={{ cursor: 'pointer', color: 'var(--accent)', borderColor: 'var(--accent)44' }}
+              onClick={handleSymClick}>
+              {n.sym}
+            </span>
+          )}
         </div>
       </div>
-      <span style={{ fontSize: 10, color, background: bg, padding: '3px 8px', borderRadius: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+      <span style={{ fontSize: 10, color, background: bg, padding: '3px 8px', borderRadius: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0 }}>
         {n.sentiment === 'positive' ? 'Bullish' : n.sentiment === 'negative' ? 'Bearish' : 'Netral'}
       </span>
     </div>

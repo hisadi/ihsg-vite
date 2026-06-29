@@ -160,7 +160,7 @@ function App() {
           {route === 'leaderboard' && <Leaderboard stocks={stocks} openStock={openStock} />}
           {route === 'settings' && <Settings />}
           {route === 'stock' && activeStock && (
-            <StockDetail symbol={activeStock} stocks={stocks} openStock={openStock} openPredictionForm={openPredictionForm} />
+            <StockDetail symbol={activeStock} stocks={stocks} openStock={openStock} openPredictionForm={openPredictionForm} news={news} />
           )}
         </main>
       </div>
