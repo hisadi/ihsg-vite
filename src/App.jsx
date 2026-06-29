@@ -12,6 +12,7 @@ import Predictions from './views/Predictions'
 import Leaderboard from './views/Leaderboard'
 import Settings from './views/Settings'
 import Trading from './views/Trading'
+import Rekomendasi from './views/Rekomendasi'
 import Signals from './views/Signals'
 import StockDetail from './views/StockDetail'
 import { LS } from './store'
@@ -26,7 +27,6 @@ const NAV = [
   { id: 'portfolio',   label: 'Portfolio',  icon: Icon.portfolio,   section: 'ANDA' },
   { id: 'predictions', label: 'Prediksi',    icon: Icon.predict,     section: 'OBJEKTIVITAS' },
   { id: 'signals',     label: 'Sinyal',      icon: Icon.predict,     section: 'ANALISIS' },
-  { id: 'trading',     label: 'Trading',     icon: Icon.portfolio,   section: 'ANALISIS' },
   { id: 'leaderboard', label: 'Leaderboard', icon: Icon.leaderboard, section: 'OBJEKTIVITAS' },
   { id: 'settings', label: 'Settings', icon: Icon.screener, section: 'LAINNYA' },
 ]
@@ -160,6 +160,7 @@ function App() {
           )}
           {route === 'signals'     && <Signals stocks={stocks} openStock={openStock} openPredictionForm={openPredictionForm} />}
           {route === 'trading'     && <Trading stocks={stocks} openStock={openStock} />}
+          {route === 'rekomendasi' && <Rekomendasi stocks={stocks} openStock={openStock} />}
           {route === 'leaderboard' && <Leaderboard stocks={stocks} openStock={openStock} />}
           {route === 'settings' && <Settings />}
           {route === 'stock' && activeStock && (
