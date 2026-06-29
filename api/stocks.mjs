@@ -122,7 +122,7 @@ export default async function handler(req, res) {
             askVol: Math.round(500000 + Math.random() * 500000),
             spark: buildSpark(last, changePct),
           }
-          return applyMicroTick(base, nowMs)
+          return base
         })
         .filter(s => s.last > 0)
 
@@ -138,7 +138,7 @@ export default async function handler(req, res) {
     const quoteMap = await fetchBatch(symbols, crumb, cookie)
     const stocks = STOCKS_META.map(meta => {
       const base = buildStockFromQuote(meta, quoteMap[meta.sym + '.JK'])
-      return applyMicroTick(base, nowMs)
+      return base
     })
     const ihsg = buildIHSG(quoteMap['^JKSE'])
 
