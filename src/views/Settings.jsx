@@ -67,9 +67,10 @@ export default function Settings() {
         let codeCol = -1, nameCol = -1, sectorCol = -1
         for (let i = 0; i < Math.min(10, rows.length); i++) {
           const row = rows[i].map(c => String(c).toLowerCase())
-          const codeI = row.findIndex(c => c.includes('kode') || c === 'code' || c === 'ticker')
+          const codeI = row.findIndex(c => c === 'kode' || c.includes('kode') || c === 'code')
           const nameI = row.findIndex(c => c.includes('nama') || c === 'name')
-          const secI = row.findIndex(c => c.includes('sektor') || c.includes('sector') || c.includes('industri'))
+          const secI = row.findIndex(c => c.includes('sektor') || c.includes('sector') || c.includes('industri') || c.includes('subsektor'))
+          const sharesI = row.findIndex(c => c === 'saham' || c.includes('saham') || c.includes('share'))
           if (codeI >= 0 && nameI >= 0) {
             headerIdx = i; codeCol = codeI; nameCol = nameI; sectorCol = secI
             break
@@ -88,7 +89,12 @@ export default function Settings() {
           const name = String(row[nameCol] || '').trim()
           const sectorRaw = sectorCol >= 0 ? String(row[sectorCol] || '') : ''
           if (sym && sym.length >= 2 && sym.length <= 5 && /^[A-Z]+$/.test(sym)) {
-            parsed.push({ sym, name, sector: mapSector(sectorRaw), mcap: 0 })
+            parsed.push({ 
+              sym, 
+              name: String(row[nameI] || '').trim(), 
+              sector: mapSector(sectorRaw), 
+              mcap: sharesI >= 0 ? Math.round(Number(String(row[sharesI]).replace(/\./g, '').replace(',','.'))) * 100 : 0
+            })
           }
         }
 
