@@ -179,7 +179,7 @@ export default function StockDetail({ symbol, stocks, openStock, openPredictionF
             {tab === 'chart' && <ChartTab stock={st} />}
             {tab === 'tech' && <TechnicalTab stock={st} />}
             {tab === 'fund' && <FundamentalTab stock={st} />}
-            {tab === 'profile' && <ProfileTab stock={st} profile={profile} loading={profileLoading} onLoad={loadProfile} />}
+            {tab === 'profile' && <ProfileTab stock={st} profile={profile} loading={profileLoading} onLoad={loadProfile} onReload={() => { setProfile(null); setTimeout(loadProfile, 100) }} />}
             {tab === 'news' && <NewsTab news={relatedNews} allNews={news} symbol={symbol} />}
           </div>
         </div>
@@ -297,7 +297,7 @@ function FundamentalTab({ stock }) {
   )
 }
 
-function ProfileTab({ stock, profile, loading, onLoad }) {
+function ProfileTab({ stock, profile, loading, onLoad, onReload }) {
   return (
     <div className="col" style={{ gap: 16, padding: 16 }}>
       {/* Company Info */}
@@ -320,9 +320,17 @@ function ProfileTab({ stock, profile, loading, onLoad }) {
       <div>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
           ✨ Profil Perusahaan (AI)
-          {!profile && !loading && (
-            <button className="btn sm ghost" style={{ fontSize: 11 }} onClick={onLoad}>Muat Profil</button>
-          )}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {!profile && !loading && (
+              <button className="btn sm ghost" style={{ fontSize: 11 }} onClick={onLoad}>Muat Profil</button>
+            )}
+            {profile && (
+              <button className="btn sm ghost" style={{ fontSize: 11 }} onClick={() => {
+                localStorage.removeItem(`profile_${stock.symbol}`)
+                onReload()
+              }}>🔄 Refresh</button>
+            )}
+          </div>
         </div>
         {loading && (
           <div style={{ color: 'var(--text-2)', fontSize: 13, padding: '16px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
