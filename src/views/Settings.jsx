@@ -1,11 +1,17 @@
 // Settings.jsx — Upload daftar saham BEI dari Excel IDX
 import React, { useState, useEffect, useRef } from 'react'
-import { createClient } from '@supabase/supabase-js'
 import * as XLSX from 'xlsx'
 
 const SUPABASE_URL = 'https://pvqbjqjjwwcmzajldlzo.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2cWJqcWpqd3djbXphamxkbHpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNjk1NzksImV4cCI6MjA5NjY0NTU3OX0.3IeD44BUsjvlvRQU6lcfWysT5nyZxq9eZCNEZ2HN-WA'
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+let _supabase = null
+async function getSupabase() {
+  if (_supabase) return _supabase
+  const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
+  _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  return _supabase
+}
 
 const SECTOR_MAP = {
   'Keuangan': 'FINANCIAL', 'Perbankan': 'FINANCIAL', 'Asuransi': 'FINANCIAL',
@@ -40,7 +46,7 @@ export default function Settings() {
 
   async function loadTickers() {
     setLoading(true)
-    const { data } = await supabase.from('idx_tickers').select('*').order('sym')
+    const { data } = await (await getSupabase()).from('idx_tickers').select('*').order('sym')
     setTickers(data || [])
     setLoading(false)
   }
@@ -113,7 +119,7 @@ export default function Settings() {
           mcap: t.mcap,
           updated_at: new Date().toISOString()
         }))
-        const { error } = await supabase.from('idx_tickers').upsert(batch, { onConflict: 'sym' })
+        const { error } = await (await getSupabase()).from('idx_tickers').upsert(batch, { onConflict: 'sym' })
         if (error) throw error
         saved += batch.length
         setMsg({ type: 'info', text: `Menyimpan... ${saved}/${preview.length}` })
@@ -130,7 +136,7 @@ export default function Settings() {
 
   async function clearAll() {
     if (!confirm('Hapus semua ticker dari database?')) return
-    await supabase.from('idx_tickers').delete().neq('sym', '')
+    await (await getSupabase()).from('idx_tickers').delete().neq('sym', '')
     setTickers([])
     setMsg({ type: 'info', text: 'Database dikosongkan.' })
   }
