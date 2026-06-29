@@ -5,15 +5,23 @@ import { fmt, sgn, SECTOR_LABELS, SECTOR_COLORS } from '../api'
 import { LS } from '../store'
 import { defaultWatchlist } from '../defaults'
 
-const OR_KEY_STORAGE = 'or_key'
-
+let _orKey = null
 async function getORKey() {
-  let key = localStorage.getItem(OR_KEY_STORAGE) || ''
-  if (!key) {
-    key = prompt('Masukkan OpenRouter API Key untuk fitur AI:')
-    if (key) localStorage.setItem(OR_KEY_STORAGE, key)
-  }
-  return key
+  if (_orKey) return _orKey
+  try {
+    const resp = await fetch(
+      'https://pvqbjqjjwwcmzajldlzo.supabase.co/rest/v1/keys?select=value&name=eq.openrouter&limit=1',
+      {
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2cWJqcWpqd3djbXphamxkbHpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNjk1NzksImV4cCI6MjA5NjY0NTU3OX0.3IeD44BUsjvlvRQU6lcfWysT5nyZxq9eZCNEZ2HN-WA',
+          'Accept-Profile': 'apikeys',
+        }
+      }
+    )
+    const data = await resp.json()
+    _orKey = data?.[0]?.value || ''
+  } catch {}
+  return _orKey
 }
 
 export default function StockDetail({ symbol, stocks, openStock, openPredictionForm, news = [] }) {
