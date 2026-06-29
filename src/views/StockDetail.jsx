@@ -63,7 +63,7 @@ export default function StockDetail({ symbol, stocks, openStock, openPredictionF
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
         body: JSON.stringify({
-          model: 'meta-llama/llama-3.3-70b-instruct:free',
+          model: 'openai/gpt-oss-120b:free',
           messages: [{
             role: 'user',
             content: `Jelaskan profil perusahaan ${symbol} (${st?.name}) yang terdaftar di Bursa Efek Indonesia dalam Bahasa Indonesia, max 150 kata. Sertakan: bidang usaha utama, produk/layanan, posisi di industri, dan fakta menarik. Jangan sebut data keuangan spesifik yang bisa berubah.`
