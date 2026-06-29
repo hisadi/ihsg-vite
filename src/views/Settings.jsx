@@ -1,7 +1,5 @@
 // Settings.jsx — Upload daftar saham BEI dari Excel IDX
 import React, { useState, useEffect, useRef } from 'react'
-import * as XLSX from 'xlsx'
-
 const SUPABASE_URL = 'https://pvqbjqjjwwcmzajldlzo.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2cWJqcWpqd3djbXphamxkbHpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNjk1NzksImV4cCI6MjA5NjY0NTU3OX0.3IeD44BUsjvlvRQU6lcfWysT5nyZxq9eZCNEZ2HN-WA'
 
@@ -57,11 +55,12 @@ export default function Settings() {
     setMsg(null)
 
     const reader = new FileReader()
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
-        const wb = XLSX.read(ev.target.result, { type: 'array' })
+        const { read, utils } = await import('https://esm.sh/xlsx@0.18.5')
+        const wb = read(ev.target.result, { type: 'array' })
         const ws = wb.Sheets[wb.SheetNames[0]]
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+        const rows = utils.sheet_to_json(ws, { header: 1, defval: '' })
 
         // Cari header row
         let headerIdx = -1
@@ -99,6 +98,8 @@ export default function Settings() {
         setMsg({ type: 'error', text: 'Gagal parse Excel: ' + err.message })
       }
     }
+    
+    
     reader.readAsArrayBuffer(file)
   }
 
