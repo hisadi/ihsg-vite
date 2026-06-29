@@ -10,6 +10,7 @@ import Watchlist from './views/Watchlist'
 import Portfolio from './views/Portfolio'
 import Predictions from './views/Predictions'
 import Leaderboard from './views/Leaderboard'
+import Signals from './views/Signals'
 import StockDetail from './views/StockDetail'
 import { LS } from './store'
 import { defaultWatchlist } from './defaults'
@@ -22,6 +23,7 @@ const NAV = [
   { id: 'watchlist',   label: 'Watchlist',   icon: Icon.watchlist,   section: 'ANDA' },
   { id: 'portfolio',   label: 'Portfolio',  icon: Icon.portfolio,   section: 'ANDA' },
   { id: 'predictions', label: 'Prediksi',    icon: Icon.predict,     section: 'OBJEKTIVITAS' },
+  { id: 'signals',     label: 'Sinyal',      icon: Icon.predict,     section: 'ANALISIS' },
   { id: 'leaderboard', label: 'Leaderboard', icon: Icon.leaderboard, section: 'OBJEKTIVITAS' },
 ]
 
@@ -152,6 +154,7 @@ function App() {
             <Predictions stocks={stocks} openStock={openStock} prefillSym={prefillSym}
               clearPrefill={() => setPrefillSym(null)} openForm={openForm} setOpenForm={setOpenForm} />
           )}
+          {route === 'signals'     && <Signals stocks={stocks} openStock={openStock} openPredictionForm={openPredictionForm} />}
           {route === 'leaderboard' && <Leaderboard stocks={stocks} openStock={openStock} />}
           {route === 'stock' && activeStock && (
             <StockDetail symbol={activeStock} stocks={stocks} openStock={openStock} openPredictionForm={openPredictionForm} />
