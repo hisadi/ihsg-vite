@@ -142,29 +142,125 @@ async function fetchYahooQuote(sym) {
   } catch { return null }
 }
 
+let _crumb = null, _cookie = null
+
+async function getYahooCrumb() {
+  if (_crumb) return { crumb: _crumb, cookie: _cookie }
+  try {
+    // Step 1: get cookie dulu
+    const r1 = await axios.get('https://finance.yahoo.com/', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+      },
+      timeout: 10000,
+      maxRedirects: 5,
+    })
+    _cookie = r1.headers['set-cookie']?.join('; ') || ''
+
+    // Step 2: get crumb pakai cookie
+    const r2 = await axios.get('https://query1.finance.yahoo.com/v1/test/getcrumb', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Cookie': _cookie,
+      },
+      timeout: 8000,
+    })
+    _crumb = r2.data || null
+    console.log('Crumb:', _crumb ? 'OK' : 'FAILED')
+  } catch (e) {
+    console.log('getYahooCrumb error:', e.message)
+    _crumb = null
+  }
+  return { crumb: _crumb, cookie: _cookie }
+}
+
+setInterval(() => { _crumb = null }, 15 * 60 * 1000) // reset tiap 15 menit
+
 async function refreshQuotes() {
-  console.log('[' + new Date().toLocaleTimeString('id-ID') + '] Fetching Yahoo Finance quotes...')
-  for (const meta of STOCKS_META) {
-    const q = await fetchYahooQuote(meta.sym)
-    if (q && q.last > 0) {
-      Object.assign(stockState[meta.sym], q)
-      // Seed price history with close prices for RSI
-      const histUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${meta.sym}?interval=1d&range=1mo`
-      try {
-        const r = await axios.get(histUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 5000 })
-        const closes = (r.data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || []).filter(v => v != null)
-        priceHistory[meta.sym] = closes.slice(-30)
-      } catch {}
+  // Load ticker dari Supabase kalau masih 70 (default)
+  if (STOCKS_META.length <= 70) {
+    try {
+      const r = await axios.get(
+        'https://pvqbjqjjwwcmzajldlzo.supabase.co/rest/v1/idx_tickers?select=sym,name,sector,mcap&order=sym',
+        {
+          headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2cWJqcWpqd3djbXphamxkbHpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNjk1NzksImV4cCI6MjA5NjY0NTU3OX0.3IeD44BUsjvlvRQU6lcfWysT5nyZxq9eZCNEZ2HN-WA' },
+          timeout: 8000
+        }
+      )
+      if (r.data?.length > 0) {
+        STOCKS_META.length = 0
+        r.data.forEach(t => {
+          STOCKS_META.push({ sym: t.sym + '.JK', name: t.name, sector: t.sector || 'OTHER' })
+          if (!stockState[t.sym + '.JK']) {
+            stockState[t.sym + '.JK'] = {
+              sym: t.sym + '.JK', name: t.name, sector: t.sector || 'OTHER',
+              last: 1000, prevClose: 1000, open: 1000, high: 1000, low: 1000,
+              change: 0, changePct: 0, volume: 0, value: 0, mcap: t.mcap || 0,
+              per: 15, pbv: 1, foreignNet: 0, rsi: 50,
+              bid: 990, ask: 1010, bidVol: 100000, askVol: 100000, spark: [],
+            }
+          }
+          if (!priceHistory[t.sym + '.JK']) priceHistory[t.sym + '.JK'] = []  // ← tambah ini
+        })
+        console.log('Loaded', STOCKS_META.length, 'tickers from Supabase')
+      }
+    } catch (e) {
+      console.log('Supabase ticker fetch failed:', e.message)
     }
   }
-  const iq = await fetchYahooQuote(IHSG_SYM)
-  if (iq && iq.last > 0) {
-    ihsgState.value = iq.last
-    ihsgState.prevClose = iq.prevClose
-    ihsgState.change = iq.change
-    ihsgState.changePct = iq.changePct
+
+  console.log('[' + new Date().toLocaleTimeString('id-ID') + '] Fetching Yahoo Finance quotes...')
+  try {
+    const { crumb, cookie } = await getYahooCrumb()
+    if (!crumb) {
+      console.log('No crumb, skip this cycle')
+      return
+    }
+
+    // Batch per 300 karena Yahoo ada limit
+    const allSyms = [...STOCKS_META.map(m => m.sym), IHSG_SYM]
+    const BATCH = 300
+    for (let i = 0; i < allSyms.length; i += BATCH) {
+      const batch = allSyms.slice(i, i + BATCH)
+      const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(batch.join(','))}&crumb=${encodeURIComponent(crumb)}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketPreviousClose,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,regularMarketVolume`
+      const resp = await axios.get(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36', 'Cookie': cookie },
+        timeout: 15000
+      })
+      const results = resp.data?.quoteResponse?.result || []
+      results.forEach(q => {
+        if (q.symbol === IHSG_SYM) {
+          ihsgState.value = q.regularMarketPrice || ihsgState.value
+          ihsgState.prevClose = q.regularMarketPreviousClose || ihsgState.prevClose
+          ihsgState.change = q.regularMarketChange || 0
+          ihsgState.changePct = q.regularMarketChangePercent || 0
+          return
+        }
+        const st = stockState[q.symbol]
+        if (!st) return
+        st.last = Math.round(q.regularMarketPrice || st.last)
+        st.prevClose = Math.round(q.regularMarketPreviousClose || st.prevClose)
+        st.open = Math.round(q.regularMarketOpen || st.open)
+        st.high = Math.round(q.regularMarketDayHigh || st.high)
+        st.low = Math.round(q.regularMarketDayLow || st.low)
+        st.volume = q.regularMarketVolume || st.volume
+        st.change = Math.round(q.regularMarketChange || 0)
+        st.changePct = +(q.regularMarketChangePercent || 0).toFixed(2)
+        st.bid = st.last - 10
+        st.ask = st.last + 10
+        if (!st.spark) st.spark = []
+        st.spark.push(st.last)
+        if (st.spark.length > 30) st.spark.shift()
+      })
+      console.log(`Batch ${Math.floor(i/BATCH)+1}: ${results.length} quotes`)
+    }
+    console.log('[' + new Date().toLocaleTimeString('id-ID') + '] Done. IHSG=' + ihsgState.value)
+  } catch (e) {
+    console.error('refreshQuotes error:', e.message)
+    _crumb = null
   }
-  console.log('[' + new Date().toLocaleTimeString('id-ID') + '] Done. IHSG=' + ihsgState.value)
 }
 
 // --- Real News from Indonesian RSS Feeds ---
