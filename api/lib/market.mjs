@@ -170,10 +170,20 @@ export function buildIHSG(q) {
 
 // Deterministic micro-movement based on time seed — looks "live" without extra API calls
 export function applyMicroTick(stock, nowMs) {
-  const seed = Math.floor(nowMs / 1500) // changes every 1.5 sec
+  // Cek jam pasar BEI: Senin-Jumat 09:00-15:00 WIB (UTC+7 = UTC+420)
+  const wib = new Date(nowMs + 7 * 60 * 60 * 1000)
+  const day = wib.getUTCDay() // 0=Minggu, 6=Sabtu
+  const hour = wib.getUTCHours()
+  const minute = wib.getUTCMinutes()
+  const timeMin = hour * 60 + minute
+  const isMarketOpen = day >= 1 && day <= 5 && timeMin >= 540 && timeMin <= 900 // 09:00-15:00
+
+  if (!isMarketOpen) return stock // tidak bergerak di luar jam pasar
+
+  const seed = Math.floor(nowMs / 1500)
   const hash = simpleHash(stock.symbol + seed)
   const beta = SECTOR_BETAS[stock.sector] || 1.0
-  const nudge = ((hash % 201) - 100) / 10000 * beta // ±1% max
+  const nudge = ((hash % 201) - 100) / 10000 * beta
   const newLast = Math.round(stock.last * (1 + nudge))
   const newChangePct = +((newLast - stock.prevClose) / stock.prevClose * 100).toFixed(2)
   const spark = [...(stock.spark || []).slice(-29), newLast]
