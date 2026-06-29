@@ -48,7 +48,13 @@ export default function StockDetail({ symbol, stocks, openStock, openPredictionF
   }
 
   async function loadProfile() {
-    if (profile || profileLoading) return
+    if (profileLoading) return
+
+    // Cek cache localStorage dulu
+    const cacheKey = `profile_${symbol}`
+    const cached = localStorage.getItem(cacheKey)
+    if (cached) { setProfile(cached); return }
+
     setProfileLoading(true)
     try {
       const key = await getORKey()
@@ -57,7 +63,7 @@ export default function StockDetail({ symbol, stocks, openStock, openPredictionF
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
         body: JSON.stringify({
-          model: 'nvidia/nemotron-nano-12b-v2-vl:free',
+          model: 'meta-llama/llama-3.3-70b-instruct:free',
           messages: [{
             role: 'user',
             content: `Jelaskan profil perusahaan ${symbol} (${st?.name}) yang terdaftar di Bursa Efek Indonesia dalam Bahasa Indonesia, max 150 kata. Sertakan: bidang usaha utama, produk/layanan, posisi di industri, dan fakta menarik. Jangan sebut data keuangan spesifik yang bisa berubah.`
@@ -65,7 +71,9 @@ export default function StockDetail({ symbol, stocks, openStock, openPredictionF
         })
       })
       const data = await resp.json()
-      setProfile(data.choices?.[0]?.message?.content || 'Profil tidak tersedia.')
+      const text = data.choices?.[0]?.message?.content || 'Profil tidak tersedia.'
+      setProfile(text)
+      localStorage.setItem(cacheKey, text) // simpan ke cache
     } catch (e) {
       setProfile('Gagal memuat profil: ' + e.message)
     }
