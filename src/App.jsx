@@ -11,6 +11,7 @@ import Portfolio from './views/Portfolio'
 import Predictions from './views/Predictions'
 import Leaderboard from './views/Leaderboard'
 import Settings from './views/Settings'
+import Trading from './views/Trading'
 import Signals from './views/Signals'
 import StockDetail from './views/StockDetail'
 import { LS } from './store'
@@ -157,6 +158,7 @@ function App() {
               clearPrefill={() => setPrefillSym(null)} openForm={openForm} setOpenForm={setOpenForm} />
           )}
           {route === 'signals'     && <Signals stocks={stocks} openStock={openStock} openPredictionForm={openPredictionForm} />}
+          {route === 'trading'     && <Trading stocks={stocks} openStock={openStock} />}
           {route === 'leaderboard' && <Leaderboard stocks={stocks} openStock={openStock} />}
           {route === 'settings' && <Settings />}
           {route === 'stock' && activeStock && (
