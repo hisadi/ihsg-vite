@@ -1,25 +1,19 @@
 // api/stocks.mjs — GET /api/stocks → { stocks[], ihsg, timestamp }
-// Pakai ticker dari Supabase + RSI real dari data historis
 import { STOCKS_META, fetchBatchQuotes, buildStockFromQuote, buildIHSG, applyMicroTick } from './lib/market.mjs'
 import { getRealRSI } from './lib/rsi.mjs'
 
 const SUPABASE_URL = 'https://pvqbjqjjwwcmzajldlzo.supabase.co'
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2cWJqcWpqd3djbXphamxkbHpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNjk1NzksImV4cCI6MjA5NjY0NTU3OX0.3IeD44BUsjvlvRQU6lcfWysT5nyZxq9eZCNEZ2HN-WA'
 
-// Cache ticker list dari Supabase (6 jam)
 let cachedMeta = null
 let cacheTime = 0
 const CACHE_TTL = 6 * 60 * 60 * 1000
 
 async function getTickerMeta() {
   if (cachedMeta && Date.now() - cacheTime < CACHE_TTL) return cachedMeta
-
   try {
     const resp = await fetch(`${SUPABASE_URL}/rest/v1/idx_tickers?select=sym,name,sector,mcap&order=sym`, {
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-      },
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
       signal: AbortSignal.timeout(8000),
     })
     if (!resp.ok) throw new Error(`Supabase error: ${resp.status}`)
@@ -32,8 +26,31 @@ async function getTickerMeta() {
   } catch (e) {
     console.warn('Supabase ticker fetch failed:', e.message)
   }
-
   return null
+}
+
+// Ambil RSI real dari Supabase (hasil update batch, bukan hitung on-the-fly)
+async function getStoredRSI() {
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/stock_rsi?select=sym,rsi,updated_at`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
+      signal: AbortSignal.timeout(6000),
+    })
+    if (!resp.ok) return {}
+    const data = await resp.json()
+    const map = {}
+    const now = Date.now()
+    data.forEach(r => {
+      // Hanya pakai RSI yang update-nya < 24 jam, biar tidak basi
+      const age = now - new Date(r.updated_at).getTime()
+      if (age < 24 * 60 * 60 * 1000) {
+        map[r.sym] = r.rsi
+      }
+    })
+    return map
+  } catch {
+    return {}
+  }
 }
 
 export default async function handler(req, res) {
@@ -42,7 +59,6 @@ export default async function handler(req, res) {
 
   try {
     const nowMs = Date.now()
-
     const dynamicMeta = await getTickerMeta()
     const metaList = dynamicMeta || STOCKS_META
 
@@ -55,45 +71,33 @@ export default async function handler(req, res) {
       batches.push(allSymbols.slice(i, i + BATCH_SIZE))
     }
 
-    const quoteResults = await Promise.allSettled(
-      batches.map(batch => fetchBatchQuotes(batch))
-    )
+    const [quoteResults, storedRSI] = await Promise.all([
+      Promise.allSettled(batches.map(batch => fetchBatchQuotes(batch))),
+      getStoredRSI(),
+    ])
 
     const quoteMap = {}
     quoteResults.forEach(r => {
       if (r.status === 'fulfilled') Object.assign(quoteMap, r.value)
     })
 
-    // Ambil RSI real untuk saham dengan volume tertinggi dulu (limit 300 per request karena rate limit)
-    const activeSymbols = metaList
-      .map(m => m.sym)
-      .slice(0, 300) // fokus ke 300 saham teratas dulu
-
-    let realRSI = {}
-    try {
-      realRSI = await getRealRSI(activeSymbols)
-    } catch (e) {
-      console.warn('RSI fetch failed:', e.message)
-    }
-
     const stocks = metaList.map(meta => {
       const q = quoteMap[meta.sym + '.JK']
       const base = buildStockFromQuote(meta, q)
 
-      // Pakai RSI real kalau ada, kalau tidak pakai estimasi lama
-      if (realRSI[meta.sym] != null) {
-        base.rsi = realRSI[meta.sym]
+      // Override RSI dengan data real dari Supabase kalau ada
+      if (storedRSI[meta.sym] != null) {
+        base.rsi = storedRSI[meta.sym]
         base.rsiReal = true
-      } else {
-        base.rsiReal = false
       }
 
       return applyMicroTick(base, nowMs)
     }).filter(s => s.last > 0)
 
     const ihsg = buildIHSG(quoteMap['^JKSE'])
+    const rsiCoverage = Object.keys(storedRSI).length
 
-    res.status(200).json({ stocks, ihsg, timestamp: nowMs, total: stocks.length })
+    res.status(200).json({ stocks, ihsg, timestamp: nowMs, total: stocks.length, rsiCoverage })
   } catch (err) {
     console.error('stocks handler error:', err.message)
     res.status(500).json({ error: err.message })

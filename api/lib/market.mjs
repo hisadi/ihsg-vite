@@ -119,7 +119,7 @@ export async function fetchBatchQuotes(customSymbols = null) {
   const { crumb, cookie } = await getCachedCrumb()
   if (!crumb) throw new Error('Could not get Yahoo crumb')
 
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&crumb=${encodeURIComponent(crumb)}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketPreviousClose,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,regularMarketVolume`
+  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&crumb=${encodeURIComponent(crumb)}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketPreviousClose,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,regularMarketVolume,marketCap,trailingPE,priceToBook,fiftyTwoWeekHigh,fiftyTwoWeekLow,sharesOutstanding,averageDailyVolume3Month`
   
   const resp = await fetch(url, {
     headers: {
@@ -143,11 +143,31 @@ export function buildStockFromQuote(meta, q) {
   const change = q?.regularMarketChange ?? 0
   const changePct = q?.regularMarketChangePercent ?? 0
 
+  // Market cap: pakai data REAL dari Yahoo kalau ada, fallback ke estimasi dari shares outstanding
+  const realMcap = q?.marketCap
+  const sharesOut = q?.sharesOutstanding
+  const mcap = realMcap || (sharesOut ? sharesOut * last : (meta.mcap || 0))
+  const mcapReal = !!realMcap
+
+  // PER & PBV: pakai data real Yahoo kalau tersedia (banyak saham kecil IDX kosong di Yahoo)
+  const realPER = q?.trailingPE
+  const realPBV = q?.priceToBook
+  const per = realPER != null ? +realPER.toFixed(2) : null
+  const pbv = realPBV != null ? +realPBV.toFixed(2) : null
+
+  // 52 Week High/Low: data REAL dari Yahoo
+  const week52High = q?.fiftyTwoWeekHigh ?? null
+  const week52Low = q?.fiftyTwoWeekLow ?? null
+
+  // Avg volume 3 bulan: REAL dari Yahoo
+  const avgVolume3M = q?.averageDailyVolume3Month ?? null
+
   return {
     symbol: meta.sym,
     name: meta.name,
     sector: meta.sector,
-    mcap: meta.mcap,
+    mcap,
+    mcapReal,
     last,
     prevClose,
     open: q?.regularMarketOpen ?? last,
@@ -157,13 +177,24 @@ export function buildStockFromQuote(meta, q) {
     changePct,
     volume: q?.regularMarketVolume ?? 0,
     value: (q?.regularMarketVolume ?? 0) * last,
-    // Estimated/derived fields
-    per: +(15 + (changePct * 0.5)).toFixed(1),
-    pbv: +(1.5 + (changePct * 0.02)).toFixed(2),
+    avgVolume3M,
+    week52High,
+    week52Low,
+    // PER/PBV: null kalau tidak ada data real (jangan reka-reka angka)
+    per,
+    pbv,
+    perReal: per != null,
+    pbvReal: pbv != null,
+    // RSI: placeholder, di-override oleh RSI real dari rsi.mjs kalau tersedia
     rsi: calcRSI(changePct),
-    foreignNet: Math.round(changePct * meta.mcap * 0.0002),
+    rsiReal: false,
+    // Foreign Net: TIDAK ADA sumber gratis yang legal — ini SELALU estimasi, ditandai jelas
+    foreignNet: Math.round(changePct * mcap * 0.0002),
+    foreignNetReal: false,
+    // Bid/Ask: TIDAK ADA orderbook real-time gratis — ini SELALU estimasi
     bid: last - 10,
     ask: last + 10,
+    bidAskReal: false,
     bidVol: Math.round(500000 + Math.random() * 1000000),
     askVol: Math.round(500000 + Math.random() * 1000000),
     spark: buildSpark(last, changePct),

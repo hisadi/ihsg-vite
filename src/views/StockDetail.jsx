@@ -131,8 +131,8 @@ export default function StockDetail({ symbol, stocks, openStock, openPredictionF
           <span className="muted" style={{ fontSize: 11 }}>vs prev close {fmt.px(st.prevClose)}</span>
         </div>
         <div className="row" style={{ gap: 16, marginLeft: 'auto' }}>
-          <KV label="Bid" value={<><span className="up mono">{fmt.px(st.bid)}</span> <span className="muted" style={{ fontSize: 11 }}>×{fmt.vol(st.bidVol)}</span></>} />
-          <KV label="Ask" value={<><span className="down mono">{fmt.px(st.ask)}</span> <span className="muted" style={{ fontSize: 11 }}>×{fmt.vol(st.askVol)}</span></>} />
+          <KV label={<>Bid <EstBadge /></>} value={<><span className="up mono">{fmt.px(st.bid)}</span> <span className="muted" style={{ fontSize: 11 }}>×{fmt.vol(st.bidVol)}</span></>} />
+          <KV label={<>Ask <EstBadge /></>} value={<><span className="down mono">{fmt.px(st.ask)}</span> <span className="muted" style={{ fontSize: 11 }}>×{fmt.vol(st.askVol)}</span></>} />
         </div>
       </div>
 
@@ -145,8 +145,8 @@ export default function StockDetail({ symbol, stocks, openStock, openPredictionF
           <KV label="Volume" value={<span className="mono">{fmt.vol(st.volume)}</span>} />
           <KV label="Nilai" value={<span className="mono">{fmt.bigIDR(st.value)}</span>} />
           <KV label="Mkt Cap" value={<span className="mono">{fmt.bigIDR(st.mcap)}</span>} />
-          <KV label="PER" value={<span className="mono">{(st.per || 0).toFixed(1)}x</span>} />
-          <KV label="PBV" value={<span className="mono">{(st.pbv || 0).toFixed(2)}x</span>} />
+          <KV label="PER" value={<span className="mono">{st.per != null ? st.per.toFixed(1) + 'x' : 'N/A'}</span>} />
+          <KV label="PBV" value={<span className="mono">{st.pbv != null ? st.pbv.toFixed(2) + 'x' : 'N/A'}</span>} />
         </div>
       </div>
 
@@ -220,6 +220,16 @@ function KV({ label, value }) {
   )
 }
 
+function EstBadge() {
+  return (
+    <span style={{
+      fontSize: 8, fontWeight: 700, color: 'var(--text-3)',
+      background: 'var(--panel)', padding: '1px 4px', borderRadius: 3,
+      border: '1px solid var(--border)', marginLeft: 3, letterSpacing: 0
+    }} title="Data estimasi — tidak ada sumber gratis real-time untuk data ini">EST</span>
+  )
+}
+
 function ChartTab({ stock }) {
   const bars = (stock.spark || []).map((close, i) => ({
     open: i > 0 ? stock.spark[i - 1] : close,
@@ -238,7 +248,7 @@ function TechnicalTab({ stock }) {
         <IndicatorCard title="RSI(14)" value={(stock.rsi || 50).toFixed(1)} status={rsiLabel} progress={stock.rsi || 50} />
         <IndicatorCard title="MACD" value={trend} status={(stock.changePct || 0) > 0 ? 'Bullish' : 'Bearish'} />
         <IndicatorCard title="MA Trend" value={trend} status={trend === 'Uptrend' ? 'Bullish' : 'Bearish'} />
-        <IndicatorCard title="Foreign" value={fmt.bigIDR(stock.foreignNet)} status={(stock.foreignNet || 0) > 0 ? 'Net Buy' : 'Net Sell'} />
+        <IndicatorCard title="Foreign (Est.)" value={fmt.bigIDR(stock.foreignNet)} status={(stock.foreignNet || 0) > 0 ? 'Net Buy' : 'Net Sell'} />
       </div>
       <div className="panel" style={{ background: 'var(--panel-2)' }}>
         <div className="panel-body">
@@ -246,7 +256,9 @@ function TechnicalTab({ stock }) {
           <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.8 }}>
             <li>Harga {trend === 'Uptrend' ? 'di atas' : 'di bawah'} MA(20) — momentum {trend === 'Uptrend' ? 'positif' : 'negatif'}.</li>
             <li>RSI {(stock.rsi || 50).toFixed(0)} ({rsiLabel}) — {(stock.rsi || 50) > 70 ? 'potensi koreksi' : (stock.rsi || 50) < 30 ? 'potensi rebound' : 'tidak ada signal ekstrem'}.</li>
-            <li>Asing {(stock.foreignNet || 0) > 0 ? 'net buy' : 'net sell'} {fmt.bigIDR(Math.abs(stock.foreignNet || 0))} hari ini.</li>
+            <li>Asing {(stock.foreignNet || 0) > 0 ? 'net buy' : 'net sell'} {fmt.bigIDR(Math.abs(stock.foreignNet || 0))} hari ini <em style={{ color: 'var(--text-3)' }}>(estimasi — data foreign flow real tidak tersedia gratis)</em>.</li>
+            {stock.rsiReal && <li style={{ color: 'var(--up)' }}>✓ RSI dihitung dari data historis real (RSI-14 Wilder's method).</li>}
+            {!stock.rsiReal && <li style={{ color: 'var(--text-3)' }}>⚠ RSI masih estimasi — update di halaman Settings untuk data real.</li>}
             <li>Volume hari ini {fmt.vol(stock.volume)}.</li>
           </ul>
         </div>
@@ -272,26 +284,29 @@ function IndicatorCard({ title, value, status, progress }) {
 
 function FundamentalTab({ stock }) {
   const items = [
-    ['Market Cap', fmt.bigIDR(stock.mcap)],
-    ['PER (TTM)', (stock.per || 0).toFixed(2) + 'x'],
-    ['PBV', (stock.pbv || 0).toFixed(2) + 'x'],
-    ['RSI', (stock.rsi || 50).toFixed(0)],
-    ['Beta Sektor', (stock.beta || 1).toFixed(2)],
-    ['Foreign Net', fmt.bigIDR(stock.foreignNet || 0)],
-    ['52W High*', fmt.px(Math.round(stock.last * 1.25))],
-    ['52W Low*', fmt.px(Math.round(stock.last * 0.78))],
-    ['Avg Vol*', fmt.vol(stock.volume * 1.1)],
+    ['Market Cap', fmt.bigIDR(stock.mcap), stock.mcapReal],
+    ['PER (TTM)', stock.per != null ? stock.per.toFixed(2) + 'x' : 'N/A', stock.perReal],
+    ['PBV', stock.pbv != null ? stock.pbv.toFixed(2) + 'x' : 'N/A', stock.pbvReal],
+    ['RSI (14)', (stock.rsi || 50).toFixed(0), stock.rsiReal],
+    ['Foreign Net', fmt.bigIDR(stock.foreignNet || 0), false],
+    ['52W High', stock.week52High ? fmt.px(stock.week52High) : 'N/A', stock.week52High != null],
+    ['52W Low', stock.week52Low ? fmt.px(stock.week52Low) : 'N/A', stock.week52Low != null],
+    ['Avg Vol 3M', stock.avgVolume3M ? fmt.vol(stock.avgVolume3M) : 'N/A', stock.avgVolume3M != null],
   ]
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0, padding: 4 }}>
-      {items.map(([k, v]) => (
-        <div key={k} style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{k}</div>
-          <div className="mono" style={{ fontSize: 14, marginTop: 2 }}>{v}</div>
-        </div>
-      ))}
-      <div style={{ gridColumn: '1/-1', padding: '8px 12px', fontSize: 11, color: 'var(--text-3)' }}>
-        * Estimasi berdasarkan harga saat ini
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0, padding: 4 }}>
+        {items.map(([k, v, isReal]) => (
+          <div key={k} style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 4 }}>
+              {k} {!isReal && <EstBadge />}
+            </div>
+            <div className="mono" style={{ fontSize: 14, marginTop: 2, color: isReal ? 'var(--text)' : 'var(--text-2)' }}>{v}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ padding: '10px 12px', fontSize: 11, color: 'var(--text-3)', lineHeight: 1.6 }}>
+        <strong>EST</strong> = data estimasi/dihitung, bukan data resmi real-time. Market Cap, PER, PBV, 52W High/Low, dan Avg Volume 3M diambil real dari Yahoo Finance kalau tersedia (banyak saham kecil IDX datanya kosong di Yahoo). Foreign Net Flow dan Bid/Ask selalu estimasi karena tidak ada sumber gratis resmi untuk data itu.
       </div>
     </div>
   )

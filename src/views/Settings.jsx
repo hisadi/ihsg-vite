@@ -40,7 +40,52 @@ export default function Settings() {
   const [msg, setMsg] = useState(null)
   const fileRef = useRef()
 
-  useEffect(() => { loadTickers() }, [])
+  // RSI update state
+  const [rsiUpdating, setRsiUpdating] = useState(false)
+  const [rsiProgress, setRsiProgress] = useState({ done: 0, total: 0, updated: 0 })
+  const [rsiCoverage, setRsiCoverage] = useState(0)
+
+  useEffect(() => { loadTickers(); loadRSICoverage() }, [])
+
+  async function loadRSICoverage() {
+    try {
+      const { count } = await (await getSupabase()).from('stock_rsi').select('*', { count: 'exact', head: true })
+      setRsiCoverage(count || 0)
+    } catch {}
+  }
+
+  async function updateAllRSI() {
+    if (tickers.length === 0) {
+      setMsg({ type: 'error', text: 'Upload daftar saham dulu sebelum update RSI.' })
+      return
+    }
+    setRsiUpdating(true)
+    const allSymbols = tickers.map(t => t.sym)
+    const BATCH = 50
+    let doneCount = 0
+    let updatedCount = 0
+
+    for (let i = 0; i < allSymbols.length; i += BATCH) {
+      const batch = allSymbols.slice(i, i + BATCH)
+      try {
+        const resp = await fetch('/api/update-rsi', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbols: batch })
+        })
+        const data = await resp.json()
+        updatedCount += data.updated || 0
+      } catch (e) {
+        console.error('RSI batch failed:', e)
+      }
+      doneCount += batch.length
+      setRsiProgress({ done: doneCount, total: allSymbols.length, updated: updatedCount })
+    }
+
+    setRsiUpdating(false)
+    await loadRSICoverage()
+    setMsg({ type: 'success', text: `✅ RSI selesai diupdate: ${updatedCount}/${allSymbols.length} saham berhasil.` })
+  }
 
   async function loadTickers() {
     setLoading(true)
@@ -215,6 +260,46 @@ export default function Settings() {
               </div>
             </>
           )}
+        </div>
+      </div>
+
+      {/* RSI Update Panel */}
+      <div className="panel">
+        <div className="panel-head">
+          <span className="panel-title">📊 Update RSI Real (Semua Saham)</span>
+        </div>
+        <div className="panel-body col" style={{ gap: 14 }}>
+          <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
+            RSI dihitung dari data historis 1 bulan Yahoo Finance (RSI-14 standar/Wilder's method) — bukan estimasi.
+            Proses ini fetch data historis untuk tiap saham satu-satu, jadi butuh waktu untuk ratusan saham.
+          </div>
+
+          <div className="row" style={{ gap: 16 }}>
+            <div style={{ background: 'var(--panel)', borderRadius: 8, padding: '10px 16px', flex: 1 }}>
+              <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase' }}>Coverage RSI Real</div>
+              <div className="mono" style={{ fontSize: 20, fontWeight: 700 }}>{rsiCoverage} <span style={{ fontSize: 12, color: 'var(--text-3)' }}>/ {tickers.length} saham</span></div>
+            </div>
+            <button className="btn primary" onClick={updateAllRSI} disabled={rsiUpdating || tickers.length === 0}>
+              {rsiUpdating ? `⏳ ${rsiProgress.done}/${rsiProgress.total}...` : '🔄 Update Semua RSI'}
+            </button>
+          </div>
+
+          {rsiUpdating && (
+            <div className="progress">
+              <span style={{ width: `${(rsiProgress.done / rsiProgress.total * 100) || 0}%`, background: 'var(--accent)' }}></span>
+            </div>
+          )}
+
+          {rsiUpdating && (
+            <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
+              Sedang update... {rsiProgress.done}/{rsiProgress.total} saham diproses, {rsiProgress.updated} berhasil.
+              Jangan tutup halaman ini sampai selesai.
+            </div>
+          )}
+
+          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+            💡 RSI di-cache 24 jam. Setelah update, semua view (Dashboard, Sinyal, Rekomendasi, Detail Saham) otomatis pakai RSI real ini.
+          </div>
         </div>
       </div>
 
