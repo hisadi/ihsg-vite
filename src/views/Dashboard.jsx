@@ -160,8 +160,8 @@ function ForeignFlowPanel({ rows, openStock }) {
   return (
     <div className="panel">
       <div className="panel-head">
-        <span className="panel-title">Foreign Flow Tertinggi</span>
-        <span className="muted" style={{ fontSize: 11 }}>Net beli/jual asing hari ini</span>
+        <span className="panel-title">Foreign Flow Tertinggi <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-3)', background: 'var(--panel)', padding: '1px 5px', borderRadius: 3, border: '1px solid var(--border)', marginLeft: 4 }}>ESTIMASI</span></span>
+        <span className="muted" style={{ fontSize: 11 }}>Net beli/jual asing — estimasi dari pergerakan harga, bukan data resmi KSEI/IDX</span>
       </div>
       <table className="tbl">
         <thead>

@@ -24,12 +24,12 @@ function generateSignal(st) {
   // 3. Foreign flow
   if (st.foreignNet > 0) {
     const ratio = st.foreignNet / (st.mcap || 1e12)
-    if (ratio > 0.0003) { scores.push(2); reasons.push(`Foreign net buy signifikan`) }
-    else { scores.push(1); reasons.push(`Foreign net buy`) }
+    if (ratio > 0.0003) { scores.push(1); reasons.push(`Estimasi foreign net buy signifikan (bukan data resmi)`) }
+    else { scores.push(0.5); reasons.push(`Estimasi foreign net buy (bukan data resmi)`) }
   } else if (st.foreignNet < 0) {
     const ratio = Math.abs(st.foreignNet) / (st.mcap || 1e12)
-    if (ratio > 0.0003) { scores.push(-2); reasons.push(`Foreign net sell signifikan`) }
-    else { scores.push(-1); reasons.push(`Foreign net sell`) }
+    if (ratio > 0.0003) { scores.push(-1); reasons.push(`Estimasi foreign net sell signifikan (bukan data resmi)`) }
+    else { scores.push(-0.5); reasons.push(`Estimasi foreign net sell (bukan data resmi)`) }
   }
 
   // 4. Volume (relative — high volume = conviction)
@@ -38,7 +38,7 @@ function generateSignal(st) {
   // 5. Price vs prev close
   const pct = st.changePct
   if (pct < 0 && st.rsi < 45) { scores.push(1); reasons.push('Harga turun + RSI rendah = potensi rebound') }
-  if (pct > 0 && st.rsi > 55 && st.foreignNet > 0) { scores.push(1); reasons.push('Momentum positif + asing beli') }
+  if (pct > 0 && st.rsi > 55 && st.foreignNet > 0) { scores.push(1); reasons.push('Momentum positif + estimasi asing beli') }
 
   const total = scores.reduce((a, b) => a + b, 0)
 
@@ -82,7 +82,7 @@ async function askAI(stock, signal, question) {
 - Harga: Rp ${fmt.px(stock.last)} (${fmt.pct(stock.changePct)} hari ini)
 - RSI: ${stock.rsi}
 - Volume: ${fmt.vol(stock.volume)}
-- Foreign Net: ${fmt.bigIDR(stock.foreignNet)}
+- Foreign Net (ESTIMASI dari pergerakan harga, BUKAN data resmi KSEI/IDX — jangan terlalu yakin soal angka ini): ${fmt.bigIDR(stock.foreignNet)}
 - Sektor: ${SECTOR_LABELS[stock.sector] || stock.sector}
 - Sinyal teknikal: ${signal.signal} (skor ${signal.score})
 - Alasan sinyal: ${signal.reasons.join(', ')}
@@ -307,7 +307,7 @@ export default function Signals({ stocks, openStock, openPredictionForm }) {
                   <div style={{ fontSize: 11, color: 'var(--text-2)' }}>lot</div>
                 </div>
                 <div style={{ background: 'var(--panel)', borderRadius: 6, padding: '8px 10px' }}>
-                  <div style={{ fontSize: 10, color: 'var(--text-2)', fontWeight: 700 }}>ASING</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-2)', fontWeight: 700 }}>ASING <span style={{ fontSize: 8, color: 'var(--text-3)', fontWeight: 400 }}>(estimasi)</span></div>
                   <div className={'mono ' + sgn(selected.foreignNet)} style={{ fontSize: 14, fontWeight: 700 }}>
                     {fmt.bigIDR(selected.foreignNet)}
                   </div>

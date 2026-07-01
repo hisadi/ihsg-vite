@@ -49,27 +49,25 @@ function generateRekomendasi(st) {
   else if (changePct >= 4) { scores.push(-1); reasons.push(`Sudah naik ${fmt.pct(changePct)}`) }
   else if (changePct >= 1) { scores.push(1); reasons.push(`Momentum positif ${fmt.pct(changePct)}`) }
 
-  // 3. Foreign flow
+  // 3. Foreign flow (ESTIMASI — bobot dikurangi karena bukan data resmi, cuma sinyal pendukung minor)
   if (foreignNet > 0) {
     const ratio = foreignNet / (st.mcap || 1e12)
-    if (ratio > 0.0005) { scores.push(3); reasons.push(`Foreign net buy besar — akumulasi asing`) }
-    else if (ratio > 0.0002) { scores.push(2); reasons.push(`Foreign net buy — asing masuk`) }
-    else { scores.push(1); reasons.push(`Foreign net buy minor`) }
+    if (ratio > 0.0005) { scores.push(1); reasons.push(`Estimasi foreign net buy besar (bukan data resmi)`) }
+    else if (ratio > 0.0002) { scores.push(0.5); reasons.push(`Estimasi foreign net buy (bukan data resmi)`) }
   } else if (foreignNet < 0) {
     const ratio = Math.abs(foreignNet) / (st.mcap || 1e12)
-    if (ratio > 0.0005) { scores.push(-3); reasons.push(`Foreign net sell besar — distribusi asing`) }
-    else if (ratio > 0.0002) { scores.push(-2); reasons.push(`Foreign net sell — asing keluar`) }
-    else { scores.push(-1); reasons.push(`Foreign net sell minor`) }
+    if (ratio > 0.0005) { scores.push(-1); reasons.push(`Estimasi foreign net sell besar (bukan data resmi)`) }
+    else if (ratio > 0.0002) { scores.push(-0.5); reasons.push(`Estimasi foreign net sell (bukan data resmi)`) }
   }
 
   // 4. Volume
   if (volume > 100_000_000) { scores.push(2); reasons.push(`Volume sangat tinggi — ${fmt.vol(volume)} lot`) }
   else if (volume > 50_000_000) { scores.push(1); reasons.push(`Volume tinggi — ${fmt.vol(volume)} lot`) }
 
-  // 5. Kombinasi
+  // 5. Kombinasi (RSI + harga = real, asing beli = estimasi)
   if (rsi < 40 && changePct < -2 && foreignNet > 0) {
-    scores.push(2)
-    reasons.push(`Kombinasi ideal: oversold + turun + asing beli`)
+    scores.push(1.5)
+    reasons.push(`Kombinasi bagus: RSI oversold + harga turun + estimasi asing beli`)
   }
 
   const total = scores.reduce((a, b) => a + b, 0)
@@ -134,13 +132,15 @@ async function getAIExplanation(rek) {
 
   const prompt = `Analisis rekomendasi trading saham ${rek.symbol} (${rek.name}) di BEI:
 
-Data teknikal:
+Data teknikal REAL (data resmi dari bursa):
 - Harga saat ini: Rp ${fmt.px(rek.last)}
 - Perubahan hari ini: ${fmt.pct(rek.changePct)}
-- RSI: ${rek.rsi}
-- Foreign net flow: ${fmt.bigIDR(rek.foreignNet)}
+- RSI(14): ${rek.rsi}
 - Volume: ${fmt.vol(rek.volume)} lot
 - Sektor: ${SECTOR_LABELS[rek.sector] || rek.sector}
+
+Data ESTIMASI (bukan data resmi KSEI/IDX, dihitung dari korelasi pergerakan harga — jangan jadikan ini alasan utama, sebut sebagai "indikasi" bukan "fakta"):
+- Estimasi foreign net flow: ${fmt.bigIDR(rek.foreignNet)}
 
 Rekomendasi algoritma:
 - Entry: Rp ${fmt.px(rek.entry)}
