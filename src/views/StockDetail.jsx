@@ -144,7 +144,7 @@ export default function StockDetail({ symbol, stocks, openStock, openPredictionF
           <KV label="Low" value={<span className="mono down">{fmt.px(st.low)}</span>} />
           <KV label="Volume" value={<span className="mono">{fmt.vol(st.volume)}</span>} />
           <KV label="Nilai" value={<span className="mono">{fmt.bigIDR(st.value)}</span>} />
-          <KV label="Mkt Cap" value={<span className="mono">{fmt.bigIDR(st.mcap)}</span>} />
+          <KV label={<>Mkt Cap {!st.mcapReal && <EstBadge />}</>} value={<span className="mono">{st.mcap > 0 ? fmt.bigIDR(st.mcap) : 'N/A'}</span>} />
           <KV label="PER" value={<span className="mono">{st.per != null ? st.per.toFixed(1) + 'x' : 'N/A'}</span>} />
           <KV label="PBV" value={<span className="mono">{st.pbv != null ? st.pbv.toFixed(2) + 'x' : 'N/A'}</span>} />
         </div>
@@ -322,8 +322,10 @@ function ProfileTab({ stock, profile, loading, onLoad, onReload }) {
           <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4 }}>{SECTOR_LABELS[stock.sector] || stock.sector}</div>
         </div>
         <div style={{ background: 'var(--panel-2)', borderRadius: 8, padding: 12 }}>
-          <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Market Cap</div>
-          <div className="mono" style={{ fontSize: 14, fontWeight: 600, marginTop: 4 }}>{fmt.bigIDR(stock.mcap)}</div>
+          <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 4 }}>
+            Market Cap {!stock.mcapReal && <EstBadge />}
+          </div>
+          <div className="mono" style={{ fontSize: 14, fontWeight: 600, marginTop: 4 }}>{stock.mcap > 0 ? fmt.bigIDR(stock.mcap) : 'N/A'}</div>
         </div>
         <div style={{ background: 'var(--panel-2)', borderRadius: 8, padding: 12 }}>
           <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Kode Saham</div>

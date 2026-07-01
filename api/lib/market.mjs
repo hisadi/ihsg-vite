@@ -143,11 +143,13 @@ export function buildStockFromQuote(meta, q) {
   const change = q?.regularMarketChange ?? 0
   const changePct = q?.regularMarketChangePercent ?? 0
 
-  // Market cap: pakai data REAL dari Yahoo kalau ada, fallback ke estimasi dari shares outstanding
+  // Market cap: HANYA pakai data real dari Yahoo (marketCap langsung, atau shares real dikali harga)
+  // JANGAN fallback ke meta.mcap dari Excel IDX — itu cuma angka mentah "jumlah lembar saham"
+  // dari kolom Excel, BUKAN hasil kali harga, sehingga akan jadi salah total kalau dipakai sebagai mcap.
   const realMcap = q?.marketCap
   const sharesOut = q?.sharesOutstanding
-  const mcap = realMcap || (sharesOut ? sharesOut * last : (meta.mcap || 0))
-  const mcapReal = !!realMcap
+  const mcap = realMcap || (sharesOut ? sharesOut * last : 0)
+  const mcapReal = !!(realMcap || sharesOut)
 
   // PER & PBV: pakai data real Yahoo kalau tersedia (banyak saham kecil IDX kosong di Yahoo)
   const realPER = q?.trailingPE
