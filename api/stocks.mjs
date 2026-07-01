@@ -1,6 +1,7 @@
 // api/stocks.mjs — GET /api/stocks → { stocks[], ihsg, timestamp }
-// Pakai ticker dari Supabase kalau ada, fallback ke STOCKS_META
+// Pakai ticker dari Supabase + RSI real dari data historis
 import { STOCKS_META, fetchBatchQuotes, buildStockFromQuote, buildIHSG, applyMicroTick } from './lib/market.mjs'
+import { getRealRSI } from './lib/rsi.mjs'
 
 const SUPABASE_URL = 'https://pvqbjqjjwwcmzajldlzo.supabase.co'
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2cWJqcWpqd3djbXphamxkbHpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNjk1NzksImV4cCI6MjA5NjY0NTU3OX0.3IeD44BUsjvlvRQU6lcfWysT5nyZxq9eZCNEZ2HN-WA'
@@ -32,7 +33,7 @@ async function getTickerMeta() {
     console.warn('Supabase ticker fetch failed:', e.message)
   }
 
-  return null // fallback ke STOCKS_META
+  return null
 }
 
 export default async function handler(req, res) {
@@ -42,16 +43,13 @@ export default async function handler(req, res) {
   try {
     const nowMs = Date.now()
 
-    // Coba ambil ticker dari Supabase
     const dynamicMeta = await getTickerMeta()
     const metaList = dynamicMeta || STOCKS_META
 
-    // Yahoo Finance batch max ~500 per request — bagi jadi batch
     const BATCH_SIZE = 300
     const allSymbols = metaList.map(m => m.sym + '.JK')
     allSymbols.push('^JKSE')
 
-    // Fetch dalam batch paralel
     const batches = []
     for (let i = 0; i < allSymbols.length; i += BATCH_SIZE) {
       batches.push(allSymbols.slice(i, i + BATCH_SIZE))
@@ -61,15 +59,35 @@ export default async function handler(req, res) {
       batches.map(batch => fetchBatchQuotes(batch))
     )
 
-    // Gabung semua hasil
     const quoteMap = {}
     quoteResults.forEach(r => {
       if (r.status === 'fulfilled') Object.assign(quoteMap, r.value)
     })
 
+    // Ambil RSI real untuk saham dengan volume tertinggi dulu (limit 300 per request karena rate limit)
+    const activeSymbols = metaList
+      .map(m => m.sym)
+      .slice(0, 300) // fokus ke 300 saham teratas dulu
+
+    let realRSI = {}
+    try {
+      realRSI = await getRealRSI(activeSymbols)
+    } catch (e) {
+      console.warn('RSI fetch failed:', e.message)
+    }
+
     const stocks = metaList.map(meta => {
       const q = quoteMap[meta.sym + '.JK']
       const base = buildStockFromQuote(meta, q)
+
+      // Pakai RSI real kalau ada, kalau tidak pakai estimasi lama
+      if (realRSI[meta.sym] != null) {
+        base.rsi = realRSI[meta.sym]
+        base.rsiReal = true
+      } else {
+        base.rsiReal = false
+      }
+
       return applyMicroTick(base, nowMs)
     }).filter(s => s.last > 0)
 
